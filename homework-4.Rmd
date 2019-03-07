@@ -22,6 +22,7 @@ library(partykit)
 library(randomForest)
 library(MASS)
 library(gbm)
+library(tree)
 theme_set(theme_bw())
 ```
 ## Problem 1
@@ -36,19 +37,18 @@ df <- tbl_df(Boston)
 inTraining <- createDataPartition(df$medv, p = .75, list = F)
 training <- df[inTraining, ]
 testing  <- df[-inTraining, ]
+?sequence
 
+for (t in seq (from = 25, to = 50, by = 25)){
 
-for (t in training){
-  i = 0
 rf_boston_cv <- train(medv ~ ., 
                       data = training,
                       method = "rf",
-                      ntree = 25 + (i * 25),
+                      ntree = t,
                       importance = T,
                       tuneGrid = data.frame(mtry = 3:9))}
-i <- i + 1
-if(i == 19) {
-  break}
+
+##put the RMSE into another dataframe
 
 rf_boston_cv
 ```
@@ -101,3 +101,69 @@ test MSE.
 2. Fit a multiple regression model to the training data and report the 
 estimated test MSE
 3. Summarize your results. 
+
+##a
+```{r}
+set.seed(9823)
+
+train = sample(dim(Carseats)[1], dim(Carseats)[1]/2)
+Carseats.train = Carseats[train, ]
+Carseats.test = Carseats[-train, ]
+```
+##b
+```{r}
+tree.carseats = tree(Sales ~ ., data = Carseats.train)
+summary(tree.carseats)
+```
+
+```{r}
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+```
+##test MSE
+```{r}
+pred.carseats = predict(tree.carseats, Carseats.test)
+mean((Carseats.test$Sales - pred.carseats)^2)
+```
+##c
+```{r}
+cv.carseats = cv.tree(tree.carseats, FUN = prune.tree)
+par(mfrow = c(1, 2))
+plot(cv.carseats$size, cv.carseats$dev, type = "b")
+plot(cv.carseats$k, cv.carseats$dev, type = "b")
+```
+##best size = 5
+```{r}
+pruned.carseats = prune.tree(tree.carseats, best = 5)
+par(mfrow = c(1, 1))
+plot(pruned.carseats)
+text(pruned.carseats, pretty = 0)
+```
+##test MSE
+```{r}
+pred.pruned = predict(pruned.carseats, Carseats.test)
+mean((Carseats.test$Sales - pred.pruned)^2)
+```
+##d
+```{r}
+bag.carseats = randomForest(Sales ~ ., data = Carseats.train, mtry = 10, ntree = 500, 
+    importance = T)
+bag.pred = predict(bag.carseats, Carseats.test)
+mean((Carseats.test$Sales - bag.pred)^2)
+```
+##importance
+```{r}
+importance(bag.carseats)
+```
+##e
+```{r}
+rf.carseats = randomForest(Sales ~ ., data = Carseats.train, mtry = 25, ntree = 500, 
+    importance = T)
+rf.pred = predict(rf.carseats, Carseats.test)
+mean((Carseats.test$Sales - rf.pred)^2)
+```
+##importance
+```{r}
+importance(rf.carseats)
+```
+
